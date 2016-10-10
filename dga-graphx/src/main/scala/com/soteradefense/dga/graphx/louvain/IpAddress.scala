@@ -4,7 +4,7 @@ import java.net.InetAddress
 import java.nio.ByteBuffer
 
 object IpAddress {
-  
+
   def toString(address: Long) = {
     val byteBuffer = ByteBuffer.allocate(8)
     val addressBytes = byteBuffer.putLong(address)
@@ -14,8 +14,8 @@ object IpAddress {
     Array.copy(addressBytes.array, 4, tmp, 0, 4)
     InetAddress.getByAddress(tmp).getHostAddress()
   }
-  
-  
+
+
   def toLong(_address: String): Long = {
     val address = try {
       InetAddress.getByName(_address)
@@ -26,7 +26,7 @@ object IpAddress {
     val bb = ByteBuffer.allocate(8)
     addressBytes.length match {
       case 4 =>
-        bb.put(Array[Byte](0,0,0,0)) // Need a filler
+        bb.put(Array[Byte](0, 0, 0, 0)) // Need a filler
         bb.put(addressBytes)
       case n =>
         throw new IndexOutOfBoundsException("Expected 4 byte address, got " + n)

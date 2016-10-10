@@ -162,7 +162,7 @@ object LouvainCore {
   /**
     * Creates the messages passed between each vertex to convey neighborhood community data.
     */
-  private def sendMsg(et: EdgeContext[VertexState,Long,Map[(Long,Long),Long]]) = {
+  private def sendMsg(et: EdgeContext[VertexState, Long, Map[(Long, Long), Long]]) = {
     val m1 = Map((et.srcAttr.community, et.srcAttr.communitySigmaTot) -> et.attr)
     val m2 = Map((et.dstAttr.community, et.dstAttr.communitySigmaTot) -> et.attr)
     et.sendToDst(m1)
@@ -288,7 +288,7 @@ object LouvainCore {
       .partitionBy(PartitionStrategy.EdgePartition2D).groupEdges(_ + _)
 
     // calculate the weighted degree of each node
-    val nodeWeightMapFunc = (e:EdgeContext[VertexState,Long,Long]) => {
+    val nodeWeightMapFunc = (e: EdgeContext[VertexState, Long, Long]) => {
       e.sendToDst(e.attr)
       e.sendToSrc(e.attr)
     }
