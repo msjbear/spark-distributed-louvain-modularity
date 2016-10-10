@@ -258,7 +258,7 @@ object LouvainCore {
 
 
     // aggregate the internal weights of all nodes in each community
-    var internalWeights = graph.vertices.values.map(vdata => (vdata.community, vdata.internalWeight)).reduceByKey(_ + _)
+    val internalWeights = graph.vertices.values.map(vdata => (vdata.community, vdata.internalWeight)).reduceByKey(_ + _)
 
     // join internal weights and self edges to find new interal weight of each community
     val newVerts = internalWeights.leftOuterJoin(internalEdgeWeights).map({ case (vid, (weight1, weight2Option)) =>
