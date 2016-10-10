@@ -63,7 +63,7 @@ object LouvainCore {
   def louvain(sc: SparkContext, graph: Graph[VertexState, Long], minProgress: Int = 1, progressCounter: Int = 1): (Double, Graph[VertexState, Long], Int) = {
     var louvainGraph = graph.cache()
     val graphWeight = louvainGraph.vertices.values.map(vdata => vdata.internalWeight + vdata.nodeWeight).reduce(_ + _)
-    var totalGraphWeight = sc.broadcast(graphWeight)
+    val totalGraphWeight = sc.broadcast(graphWeight)
     println("totalEdgeWeight: " + totalGraphWeight.value)
 
     // gather community information from each vertex's local neighborhood
@@ -140,13 +140,13 @@ object LouvainCore {
       // sum the nodes internal weight and all of its edges that are in its community
       val community = vdata.community
       var k_i_in = vdata.internalWeight
-      var sigmaTot = vdata.communitySigmaTot.toDouble
+      val sigmaTot = vdata.communitySigmaTot.toDouble
       msgs.foreach({ case ((communityId, sigmaTotal), communityEdgeWeight) =>
         if (vdata.community == communityId) k_i_in += communityEdgeWeight
       })
       val M = totalGraphWeight.value
       val k_i = vdata.nodeWeight + vdata.internalWeight
-      var q = (k_i_in.toDouble / M) - ((sigmaTot * k_i) / math.pow(M, 2))
+      val q = (k_i_in.toDouble / M) - ((sigmaTot * k_i) / math.pow(M, 2))
       //println(s"vid: $vid community: $community $q = ($k_i_in / $M) -  ( ($sigmaTot * $k_i) / math.pow($M, 2) )")
       if (q < 0) 0 else q
     })

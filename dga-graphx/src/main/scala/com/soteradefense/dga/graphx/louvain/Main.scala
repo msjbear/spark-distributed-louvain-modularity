@@ -8,18 +8,18 @@ import org.apache.spark.graphx._
 
 // specify command line options and their defaults
 case class Config(
-                   input: String = "",
-                   output: String = "",
-                   master: String = "local",
-                   appName: String = "graphX analytic",
-                   jars: String = "",
-                   sparkHome: String = "",
-                   parallelism: Int = -1,
-                   edgedelimiter: String = ",",
-                   minProgress: Int = 2000,
-                   progressCounter: Int = 1,
-                   ipaddress: Boolean = false,
-                   properties: Seq[(String, String)] = Seq.empty[(String, String)])
+    input: String = "",
+    output: String = "",
+    master: String = "local",
+    appName: String = "graphX analytic",
+    jars: String = "",
+    sparkHome: String = "",
+    parallelism: Int = -1,
+    edgedelimiter: String = ",",
+    minProgress: Int = 2000,
+    progressCounter: Int = 1,
+    ipaddress: Boolean = false,
+    properties: Seq[(String, String)] = Seq.empty[(String, String)])
 
 
 /**
