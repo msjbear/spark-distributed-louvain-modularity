@@ -29,8 +29,10 @@ object LouvainCore {
       e.sendToSrc(e.attr)
     }
     val nodeWeightReduceFunc = (e1: Long, e2: Long) => e1 + e2
+    //将degree设为顶点初始权重
     val nodeWeights = graph.aggregateMessages(nodeWeightMapFunc, nodeWeightReduceFunc)
-
+    nodeWeights.map(r=>(r._1,r._2)).foreach(println)
+    //初始化louvain图
     val louvainGraph = graph.outerJoinVertices(nodeWeights)((vid, data, weightOption) => {
       val weight = weightOption.getOrElse(0L)
       val state = new VertexState()
@@ -62,13 +64,21 @@ object LouvainCore {
     */
   def louvain(sc: SparkContext, graph: Graph[VertexState, Long], minProgress: Int = 1, progressCounter: Int = 1): (Double, Graph[VertexState, Long], Int) = {
     var louvainGraph = graph.cache()
+    //即图的总degree数量
     val graphWeight = louvainGraph.vertices.values.map(vdata => vdata.internalWeight + vdata.nodeWeight).reduce(_ + _)
     val totalGraphWeight = sc.broadcast(graphWeight)
     println("totalEdgeWeight: " + totalGraphWeight.value)
 
     // gather community information from each vertex's local neighborhood
+    /**
+      * eg. (4,Map((2,4) -> 1, (1,5) -> 1, (5,4) -> 1, (3,4) -> 1))
+      * Map((et.srcAttr.community, et.srcAttr.communitySigmaTot) -> et.attr)
+      * et.attr：社区边权重(communityEdgeWeight)
+      */
     var msgRDD = louvainGraph.aggregateMessages(sendMsg, mergeMsg)
+    msgRDD.foreach(println)
     var activeMessages = msgRDD.count() //materializes the msgRDD and caches it in memory
+    println("activeMessages(vertex num): "+activeMessages)
 
     var updated = 0L - minProgress
     var even = false
@@ -107,12 +117,15 @@ object LouvainCore {
       communityMapping.unpersist(blocking = false)
 
       val prevG = louvainGraph
+      prevG.vertices.foreach(println)
       louvainGraph = louvainGraph.outerJoinVertices(updatedVerts)((vid, old, newOpt) => newOpt.getOrElse(old))
+      louvainGraph.vertices.foreach(println)
       louvainGraph.cache()
 
       // gather community information from each vertex's local neighborhood
       val oldMsgs = msgRDD
       msgRDD = louvainGraph.aggregateMessages(sendMsg, mergeMsg).cache()
+      msgRDD.foreach(println)
       activeMessages = msgRDD.count() // materializes the graph by forcing computation
 
       oldMsgs.unpersist(blocking = false)
@@ -135,7 +148,7 @@ object LouvainCore {
     println("\nCompleted in " + count + " cycles")
 
 
-    // Use each vertex's neighboring community data to calculate the global modularity of the graph
+    //计算每个顶点划分到其邻居社区中得到的Modularity增益
     val newVerts = louvainGraph.vertices.innerJoin(msgRDD)((vid, vdata, msgs) => {
       // sum the nodes internal weight and all of its edges that are in its community
       val community = vdata.community
@@ -147,13 +160,15 @@ object LouvainCore {
       val M = totalGraphWeight.value
       val k_i = vdata.nodeWeight + vdata.internalWeight
       val q = (k_i_in.toDouble / M) - ((sigmaTot * k_i) / math.pow(M, 2))
-      //println(s"vid: $vid community: $community $q = ($k_i_in / $M) -  ( ($sigmaTot * $k_i) / math.pow($M, 2) )")
+      println(s"vid: $vid community: $community $q = ($k_i_in / $M) -  ( ($sigmaTot * $k_i) / math.pow($M, 2) )")
       if (q < 0) 0 else q
     })
+
+    // Use each vertex's neighboring community data to calculate the global modularity of the graph
     val actualQ = newVerts.values.reduce(_ + _)
 
     // return the modularity value of the graph along with the 
-    // graph. vertices are labeled with their community
+    // graph.vertices are labeled with their community
     return (actualQ, louvainGraph, count / 2)
 
   }
@@ -194,12 +209,12 @@ object LouvainCore {
   private def louvainVertJoin(louvainGraph: Graph[VertexState, Long], msgRDD: VertexRDD[Map[(Long, Long), Long]], totalEdgeWeight: Broadcast[Long], even: Boolean) = {
     louvainGraph.vertices.innerJoin(msgRDD)((vid, vdata, msgs) => {
       var bestCommunity = vdata.community
-      var startingCommunityId = bestCommunity
+      val startingCommunityId = bestCommunity
       var maxDeltaQ = BigDecimal(0.0);
       var bestSigmaTot = 0L
       msgs.foreach({ case ((communityId, sigmaTotal), communityEdgeWeight) =>
         val deltaQ = q(startingCommunityId, communityId, sigmaTotal, communityEdgeWeight, vdata.nodeWeight, vdata.internalWeight, totalEdgeWeight.value)
-        //println("   communtiy: "+communityId+" sigma:"+sigmaTotal+" edgeweight:"+communityEdgeWeight+"  q:"+deltaQ)
+        println("   vid: "+vid+ " startingCommunityId: "+startingCommunityId+ "   communtiy: "+communityId+" sigma:"+sigmaTotal+" edgeweight:"+communityEdgeWeight+"  q:"+deltaQ)
         if (deltaQ > maxDeltaQ || (deltaQ > 0 && (deltaQ == maxDeltaQ && communityId > bestCommunity))) {
           maxDeltaQ = deltaQ
           bestCommunity = communityId
@@ -226,10 +241,14 @@ object LouvainCore {
     */
   private def q(currCommunityId: Long, testCommunityId: Long, testSigmaTot: Long, edgeWeightInCommunity: Long, nodeWeight: Long, internalWeight: Long, totalEdgeWeight: Long): BigDecimal = {
     val isCurrentCommunity = (currCommunityId.equals(testCommunityId));
-    val M = BigDecimal(totalEdgeWeight);
+    val M = BigDecimal(totalEdgeWeight);//整个网络总degree数
+    //社区边权重(社区内部所有连接数:sum_in)
     val k_i_in_L = if (isCurrentCommunity) edgeWeightInCommunity + internalWeight else edgeWeightInCommunity;
     val k_i_in = BigDecimal(k_i_in_L);
+    //目标顶点权重
     val k_i = BigDecimal(nodeWeight + internalWeight);
+
+    //社区顶点权重(社区内所有顶点的度数之和:sum_tot)
     val sigma_tot = if (isCurrentCommunity) BigDecimal(testSigmaTot) - k_i else BigDecimal(testSigmaTot);
 
     var deltaQ = BigDecimal(0.0);
@@ -237,6 +256,8 @@ object LouvainCore {
       deltaQ = k_i_in - (k_i * sigma_tot / M)
       //println(s"      $deltaQ = $k_i_in - ( $k_i * $sigma_tot / $M")
     }
+
+    println(s"currCommunityId:$currCommunityId,testCommunityId:$testCommunityId,totalEdgeWeight:$totalEdgeWeight,internalWeight:$internalWeight,k_i_in_L:$k_i_in_L,k_i:$k_i,sigma_tot:$sigma_tot      deltaQ:$deltaQ = $k_i_in - ( $k_i * $sigma_tot / $M")
     return deltaQ;
   }
 

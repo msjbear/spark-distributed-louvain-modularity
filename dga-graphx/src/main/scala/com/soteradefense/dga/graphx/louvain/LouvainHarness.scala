@@ -1,10 +1,9 @@
 package com.soteradefense.dga.graphx.louvain
 
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.graphx._
+
 import scala.reflect.ClassTag
-import org.apache.spark.Logging
 
 /**
   * Coordinates execution of the louvain distributed community detection process on a graph.
@@ -50,6 +49,7 @@ class LouvainHarness(minProgress: Int, progressCounter: Int) {
 
       // label each vertex with its best community choice at this level of compression
       val (currentQ, currentGraph, passes) = LouvainCore.louvain(sc, louvainGraph, minProgress, progressCounter)
+      println(s"$currentQ,$passes")
       louvainGraph.unpersistVertices(blocking = false)
       louvainGraph = currentGraph
 
@@ -61,6 +61,7 @@ class LouvainHarness(minProgress: Int, progressCounter: Int) {
       if (passes > 2 && currentQ > q + 0.001) {
         q = currentQ
         louvainGraph = LouvainCore.compressGraph(louvainGraph)
+        louvainGraph.vertices.foreach(println)
       }
       else {
         halt = true
