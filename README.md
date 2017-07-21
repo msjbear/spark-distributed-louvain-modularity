@@ -1,4 +1,4 @@
-# dga-graphx 
+# louvain-graphx 
 
 - GraphX Algorithms
 
@@ -6,15 +6,14 @@ The dga-graphX package contains several pre-built executable graph algorithms bu
 
 ### pre-requisites
 
- * [Spark]  (http://spark.apache.org/)   2.0.1
+ * [Spark]  (http://spark.apache.org/)   2.1.0
  * [graphX]  (http://spark.apache.org/docs/latest/graphx-programming-guide.html)   
- * [Gradle] (http://www.gradle.org/) 
 
 ### build
 
 If necessary edit the build.gradle file to set your version of spark and graphX
 
-> gradle clean dist
+> mvn clean package
 
 Check the build/dist folder for dga-graphx-0.1.jar.   
 

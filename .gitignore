@@ -1,14 +1,15 @@
 *.iml
 .idea/
 .git/
-jrdm-dm/target/
+dga-graphx/target/
 *.sh
 *.properties
 .temp.crc
 4d945c5e-b8db-46bc-a2a3-fc7a2fe20081/
 75c3ec07-be9d-407c-8dea-669f6bb6e8dc/
-jrdm/
+louvain-graphx/target/
 receivedBlockMetadata/
 temp
 target/
 examples/
+data/louvain/test_result*/
